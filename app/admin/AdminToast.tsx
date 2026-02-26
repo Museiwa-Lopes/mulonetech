@@ -14,18 +14,46 @@ const toneClasses: Record<ToastType, string> = {
 const ADMIN_SCROLL_KEY = "admin:scrollY";
 const ADMIN_SCROLL_SAVED_AT_KEY = "admin:scrollSavedAt";
 
-function cleanupScrollLocks() {
-  const body = document.body;
-  // Defensive cleanup in case an older build left body locked.
-  if (body.style.position === "fixed") {
-    body.style.position = "";
-    body.style.top = "";
-    body.style.left = "";
-    body.style.right = "";
-    body.style.width = "";
+function safeSessionGet(key: string) {
+  try {
+    return window.sessionStorage.getItem(key);
+  } catch {
+    return null;
   }
-  if (body.dataset.adminScrollLock) {
-    delete body.dataset.adminScrollLock;
+}
+
+function safeSessionSet(key: string, value: string) {
+  try {
+    window.sessionStorage.setItem(key, value);
+  } catch {
+    // ignore storage failures
+  }
+}
+
+function safeSessionRemove(key: string) {
+  try {
+    window.sessionStorage.removeItem(key);
+  } catch {
+    // ignore storage failures
+  }
+}
+
+function cleanupScrollLocks() {
+  try {
+    const body = document.body;
+    // Defensive cleanup in case an older build left body locked.
+    if (body.style.position === "fixed") {
+      body.style.position = "";
+      body.style.top = "";
+      body.style.left = "";
+      body.style.right = "";
+      body.style.width = "";
+    }
+    if (body.dataset.adminScrollLock) {
+      delete body.dataset.adminScrollLock;
+    }
+  } catch {
+    // ignore in non-browser edge-cases
   }
 }
 
@@ -48,8 +76,8 @@ export default function AdminToast() {
       if (!(form instanceof HTMLFormElement)) {
         return;
       }
-      window.sessionStorage.setItem(ADMIN_SCROLL_KEY, String(window.scrollY));
-      window.sessionStorage.setItem(ADMIN_SCROLL_SAVED_AT_KEY, String(Date.now()));
+      safeSessionSet(ADMIN_SCROLL_KEY, String(window.scrollY));
+      safeSessionSet(ADMIN_SCROLL_SAVED_AT_KEY, String(Date.now()));
     };
 
     document.addEventListener("submit", handleSubmit, true);
@@ -60,8 +88,8 @@ export default function AdminToast() {
   }, []);
 
   useLayoutEffect(() => {
-    const raw = window.sessionStorage.getItem(ADMIN_SCROLL_KEY);
-    const savedAtRaw = window.sessionStorage.getItem(ADMIN_SCROLL_SAVED_AT_KEY);
+    const raw = safeSessionGet(ADMIN_SCROLL_KEY);
+    const savedAtRaw = safeSessionGet(ADMIN_SCROLL_SAVED_AT_KEY);
     cleanupScrollLocks();
     if (!raw) {
       return;
@@ -71,14 +99,14 @@ export default function AdminToast() {
     const age = Date.now() - (Number.isFinite(savedAt) ? savedAt : 0);
     // Ignore stale values (e.g. old tab/session).
     if (age > 15000) {
-      window.sessionStorage.removeItem(ADMIN_SCROLL_KEY);
-      window.sessionStorage.removeItem(ADMIN_SCROLL_SAVED_AT_KEY);
+      safeSessionRemove(ADMIN_SCROLL_KEY);
+      safeSessionRemove(ADMIN_SCROLL_SAVED_AT_KEY);
       return;
     }
 
     const y = Number(raw);
-    window.sessionStorage.removeItem(ADMIN_SCROLL_KEY);
-    window.sessionStorage.removeItem(ADMIN_SCROLL_SAVED_AT_KEY);
+    safeSessionRemove(ADMIN_SCROLL_KEY);
+    safeSessionRemove(ADMIN_SCROLL_SAVED_AT_KEY);
     if (!Number.isFinite(y)) {
       return;
     }
