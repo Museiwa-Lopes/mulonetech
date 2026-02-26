@@ -31,8 +31,10 @@ type HeroContentRow = {
 };
 
 type HeroStatRow = {
+  id: number;
   value: string | null;
   label: string | null;
+  sort_order: number | null;
 };
 
 type ServicesSectionRow = {
@@ -61,6 +63,7 @@ type ProjectRow = {
   tag: string | null;
   image_url?: string | null;
   description: string | null;
+  sort_order: number | null;
 };
 
 type ProjectImageRow = {
@@ -81,6 +84,7 @@ type TestimonialRow = {
   name: string | null;
   role: string | null;
   quote: string | null;
+  sort_order: number | null;
 };
 
 type ContactSectionRow = {
@@ -187,13 +191,32 @@ export default async function Home() {
       }
     : defaultHero;
 
-  const heroStats =
-    heroStatsData.length > 0
-      ? heroStatsData.map((stat) => ({
-          value: stat.value ?? "",
-          label: stat.label ?? "",
-        }))
-      : defaultHeroStats;
+  const defaultHeroStatItems = defaultHeroStats.map((stat, index) => ({
+    id: index + 1,
+    value: stat.value,
+    label: stat.label,
+    sortOrder: index,
+  }));
+
+  const dbHeroStatItems = heroStatsData.map((stat, index) => ({
+    id: stat.id,
+    value: stat.value ?? "",
+    label: stat.label ?? "",
+    sortOrder: stat.sort_order ?? index,
+  }));
+
+  const heroStatsById = new Map(dbHeroStatItems.map((stat) => [stat.id, stat]));
+  const customHeroStats = dbHeroStatItems.filter(
+    (stat) => !defaultHeroStatItems.some((fallback) => fallback.id === stat.id)
+  );
+
+  const heroStats = [...defaultHeroStatItems, ...customHeroStats]
+    .map((stat) => heroStatsById.get(stat.id) ?? stat)
+    .sort((a, b) => a.sortOrder - b.sortOrder || a.id - b.id)
+    .map((stat) => ({
+      value: stat.value,
+      label: stat.label,
+    }));
 
   const servicesSection = servicesSectionData
     ? {
@@ -229,7 +252,13 @@ export default async function Home() {
 
   const services = [...defaultServiceItems, ...customServices]
     .map((service) => dbServicesById.get(service.id) ?? service)
-    .map(({ sortOrder: _sortOrder, ...service }) => service);
+    .map((service) => ({
+      id: service.id,
+      icon: service.icon,
+      title: service.title,
+      imageUrl: service.imageUrl,
+      description: service.description,
+    }));
 
   const projectsSection = projectsSectionData
     ? {
@@ -240,25 +269,43 @@ export default async function Home() {
       }
     : defaultProjectsSection;
 
-  const projects =
-    projectsData.length > 0
-      ? projectsData.map((project) => ({
-          id: project.id,
-          title: project.title ?? "",
-          tag: project.tag ?? "",
-          imageUrl: project.image_url ?? "",
-          galleryImages: projectImagesData
-            .filter((item) => item.project_id === project.id)
-            .map((item) => item.image_url ?? "")
-            .filter(Boolean),
-          description: project.description ?? "",
-        }))
-      : defaultProjects.map((project, index) => ({
-          id: index + 1,
-          ...project,
-          imageUrl: (project as { imageUrl?: string }).imageUrl ?? "",
-          galleryImages: (project as { galleryImages?: string[] }).galleryImages ?? [],
-        }));
+  const defaultProjectItems = defaultProjects.map((project, index) => ({
+    id: index + 1,
+    ...project,
+    imageUrl: (project as { imageUrl?: string }).imageUrl ?? "",
+    galleryImages: (project as { galleryImages?: string[] }).galleryImages ?? [],
+    sortOrder: index,
+  }));
+
+  const dbProjectItems = projectsData.map((project, index) => ({
+    id: project.id,
+    title: project.title ?? "",
+    tag: project.tag ?? "",
+    imageUrl: project.image_url ?? "",
+    galleryImages: projectImagesData
+      .filter((item) => item.project_id === project.id)
+      .map((item) => item.image_url ?? "")
+      .filter(Boolean),
+    description: project.description ?? "",
+    sortOrder: project.sort_order ?? index,
+  }));
+
+  const projectsById = new Map(dbProjectItems.map((project) => [project.id, project]));
+  const customProjects = dbProjectItems.filter(
+    (project) => !defaultProjectItems.some((fallback) => fallback.id === project.id)
+  );
+
+  const projects = [...defaultProjectItems, ...customProjects]
+    .map((project) => projectsById.get(project.id) ?? project)
+    .sort((a, b) => a.sortOrder - b.sortOrder || a.id - b.id)
+    .map((project) => ({
+      id: project.id,
+      title: project.title,
+      tag: project.tag,
+      imageUrl: project.imageUrl,
+      galleryImages: project.galleryImages,
+      description: project.description,
+    }));
 
   const testimonialsSection = testimonialsSectionData
     ? {
@@ -273,15 +320,36 @@ export default async function Home() {
       }
     : defaultTestimonialsSection;
 
-  const testimonials =
-    testimonialsData.length > 0
-      ? testimonialsData.map((testimonial) => ({
-          id: testimonial.id,
-          name: testimonial.name ?? "",
-          role: testimonial.role ?? "",
-          quote: testimonial.quote ?? "",
-        }))
-      : defaultTestimonials;
+  const defaultTestimonialItems = defaultTestimonials.map((testimonial, index) => ({
+    id: index + 1,
+    name: testimonial.name,
+    role: testimonial.role,
+    quote: testimonial.quote,
+    sortOrder: index,
+  }));
+
+  const dbTestimonialItems = testimonialsData.map((testimonial, index) => ({
+    id: testimonial.id,
+    name: testimonial.name ?? "",
+    role: testimonial.role ?? "",
+    quote: testimonial.quote ?? "",
+    sortOrder: testimonial.sort_order ?? index,
+  }));
+
+  const testimonialsById = new Map(dbTestimonialItems.map((testimonial) => [testimonial.id, testimonial]));
+  const customTestimonials = dbTestimonialItems.filter(
+    (testimonial) => !defaultTestimonialItems.some((fallback) => fallback.id === testimonial.id)
+  );
+
+  const testimonials = [...defaultTestimonialItems, ...customTestimonials]
+    .map((testimonial) => testimonialsById.get(testimonial.id) ?? testimonial)
+    .sort((a, b) => a.sortOrder - b.sortOrder || a.id - b.id)
+    .map((testimonial) => ({
+      id: testimonial.id,
+      name: testimonial.name,
+      role: testimonial.role,
+      quote: testimonial.quote,
+    }));
 
   const contact = contactData
     ? {

@@ -68,24 +68,32 @@ export default async function AdminProjectsPage() {
     }
   }
 
-  const mergedProjects =
-    projects.length > 0
-      ? projects.map((project) => ({
-          id: project.id,
-          title: project.title ?? "",
-          tag: project.tag ?? "",
-          image_url: project.image_url ?? "",
-          description: project.description ?? "",
-          sort_order: project.sort_order ?? 0,
-        }))
-      : defaultProjects.map((project, index) => ({
-          id: index + 1,
-          title: project.title,
-          tag: project.tag,
-          image_url: (project as { imageUrl?: string }).imageUrl ?? "",
-          description: project.description,
-          sort_order: index,
-        }));
+  const defaultProjectRows = defaultProjects.map((project, index) => ({
+    id: index + 1,
+    title: project.title,
+    tag: project.tag,
+    image_url: (project as { imageUrl?: string }).imageUrl ?? "",
+    description: project.description,
+    sort_order: index,
+  }));
+
+  const dbProjectRows = projects.map((project) => ({
+    id: project.id,
+    title: project.title ?? "",
+    tag: project.tag ?? "",
+    image_url: project.image_url ?? "",
+    description: project.description ?? "",
+    sort_order: project.sort_order ?? 0,
+  }));
+
+  const dbById = new Map(dbProjectRows.map((project) => [project.id, project]));
+  const missingFromDefaults = dbProjectRows.filter(
+    (project) => !defaultProjectRows.some((item) => item.id === project.id)
+  );
+
+  const mergedProjects = [...defaultProjectRows, ...missingFromDefaults]
+    .map((project) => dbById.get(project.id) ?? project)
+    .sort((a, b) => a.sort_order - b.sort_order || a.id - b.id);
 
   const mergedProjectsSection = projectsSection
     ? {

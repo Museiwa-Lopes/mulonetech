@@ -125,20 +125,28 @@ export default async function AdminContentPage() {
     ctaSecondaryHref: hero?.cta_secondary_href ?? defaultHero.ctaSecondaryHref,
   };
 
-  const mergedHeroStats =
-    heroStats.length > 0
-      ? heroStats.map((item, index) => ({
-          id: item.id,
-          value: item.value ?? "",
-          label: item.label ?? "",
-          sort_order: item.sort_order ?? index,
-        }))
-      : defaultHeroStats.map((item, index) => ({
-          id: index + 1,
-          value: item.value,
-          label: item.label,
-          sort_order: index,
-        }));
+  const defaultHeroStatRows = defaultHeroStats.map((item, index) => ({
+    id: index + 1,
+    value: item.value,
+    label: item.label,
+    sort_order: index,
+  }));
+
+  const dbHeroStatRows = heroStats.map((item, index) => ({
+    id: item.id,
+    value: item.value ?? "",
+    label: item.label ?? "",
+    sort_order: item.sort_order ?? index,
+  }));
+
+  const heroStatsById = new Map(dbHeroStatRows.map((item) => [item.id, item]));
+  const customHeroStats = dbHeroStatRows.filter(
+    (item) => !defaultHeroStatRows.some((fallback) => fallback.id === item.id)
+  );
+
+  const mergedHeroStats = [...defaultHeroStatRows, ...customHeroStats]
+    .map((item) => heroStatsById.get(item.id) ?? item)
+    .sort((a, b) => a.sort_order - b.sort_order || a.id - b.id);
 
   const mergedTestimonialsSection = testimonialsSection
     ? {
@@ -148,22 +156,30 @@ export default async function AdminContentPage() {
       }
     : defaultTestimonialsSection;
 
-  const mergedTestimonials =
-    testimonials.length > 0
-      ? testimonials.map((item, index) => ({
-          id: item.id,
-          name: item.name ?? "",
-          role: item.role ?? "",
-          quote: item.quote ?? "",
-          sort_order: item.sort_order ?? index,
-        }))
-      : defaultTestimonials.map((item, index) => ({
-          id: index + 1,
-          name: item.name,
-          role: item.role,
-          quote: item.quote,
-          sort_order: index,
-        }));
+  const defaultTestimonialRows = defaultTestimonials.map((item, index) => ({
+    id: index + 1,
+    name: item.name,
+    role: item.role,
+    quote: item.quote,
+    sort_order: index,
+  }));
+
+  const dbTestimonialRows = testimonials.map((item, index) => ({
+    id: item.id,
+    name: item.name ?? "",
+    role: item.role ?? "",
+    quote: item.quote ?? "",
+    sort_order: item.sort_order ?? index,
+  }));
+
+  const testimonialsById = new Map(dbTestimonialRows.map((item) => [item.id, item]));
+  const customTestimonials = dbTestimonialRows.filter(
+    (item) => !defaultTestimonialRows.some((fallback) => fallback.id === item.id)
+  );
+
+  const mergedTestimonials = [...defaultTestimonialRows, ...customTestimonials]
+    .map((item) => testimonialsById.get(item.id) ?? item)
+    .sort((a, b) => a.sort_order - b.sort_order || a.id - b.id);
 
   const contactBadges = [0, 1, 2].map((index) => contact?.badges?.[index] ?? defaultContact.badges[index] ?? "");
 
