@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { getAdminSession } from "@/lib/auth/admin";
 import { dbQuery, isDatabaseConfigured } from "@/lib/db/postgres";
@@ -51,7 +52,9 @@ export default async function AdminLayout({
 
   return (
     <div className="min-h-screen">
-      <AdminToast />
+      <Suspense fallback={null}>
+        <AdminToast />
+      </Suspense>
       {showNav ? (
         <div className="border-b border-white/10 bg-[#0b1020]/80 backdrop-blur">
           <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
