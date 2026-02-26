@@ -121,44 +121,67 @@ async function getNextId(tableName: "services" | "projects" | "testimonials") {
   return result.rows[0]?.next_id ?? 1;
 }
 
-export async function updateProfileAction(formData: FormData) {
-  const session = await requireAdmin();
-  if (!isDatabaseConfigured()) {
-    redirectWithToast("/admin/conteudos", "Base de dados não configurada.", "error");
-  }
+function isUploadFile(value: unknown): value is File {
+  return value instanceof File && value.size > 0;
+}
 
-  const displayName = String(formData.get("display_name") ?? "");
-  const role = String(formData.get("role") ?? "");
-  const bio = String(formData.get("bio") ?? "");
-  const avatarUrlInput = String(formData.get("avatar_url") ?? "");
-  const avatarFile = formData.get("avatar_file") as File | null;
-  const uploadedAvatarUrl = avatarFile ? await uploadProfileAvatar(avatarFile) : null;
-  const avatarUrl = uploadedAvatarUrl ?? avatarUrlInput;
-
-  await dbQuery(
-    `insert into admin_profile (id, display_name, role, bio, avatar_url)
-     values (1, $1, $2, $3, $4)
-     on conflict (id) do update
-     set display_name = excluded.display_name,
-         role = excluded.role,
-         bio = excluded.bio,
-         avatar_url = excluded.avatar_url`,
-    [displayName, role, bio, avatarUrl]
+function isRedirectError(error: unknown) {
+  return (
+    Boolean(error) &&
+    typeof error === "object" &&
+    "digest" in (error as Record<string, unknown>) &&
+    String((error as { digest?: string }).digest).includes("NEXT_REDIRECT")
   );
+}
 
-  await writeAuditLog({
-    actorEmail: session.email,
-    action: "update",
-    entity: "admin_profile",
-    entityId: "1",
-    details: {
-      updatedFields: ["display_name", "role", "bio", "avatar_url"],
-      uploadedAvatar: Boolean(uploadedAvatarUrl),
-    },
-  });
+export async function updateProfileAction(formData: FormData) {
+  try {
+    const session = await requireAdmin();
+    if (!isDatabaseConfigured()) {
+      redirectWithToast("/admin/conteudos", "Base de dados não configurada.", "error");
+    }
 
-  revalidateMany(["/admin", "/admin/conteudos", "/admin/configuracoes"]);
-  redirectWithToast("/admin/conteudos", "Perfil atualizado com sucesso.");
+    const displayName = String(formData.get("display_name") ?? "");
+    const role = String(formData.get("role") ?? "");
+    const bio = String(formData.get("bio") ?? "");
+    const avatarUrlInput = String(formData.get("avatar_url") ?? "");
+    const avatarFile = formData.get("avatar_file");
+    const uploadedAvatarUrl = isUploadFile(avatarFile) ? await uploadProfileAvatar(avatarFile) : null;
+    if (isUploadFile(avatarFile) && !uploadedAvatarUrl) {
+      redirectWithToast("/admin/conteudos", "Upload da fotografia falhou. Verifique o Storage.", "error");
+    }
+    const avatarUrl = uploadedAvatarUrl ?? avatarUrlInput;
+
+    await dbQuery(
+      `insert into admin_profile (id, display_name, role, bio, avatar_url)
+       values (1, $1, $2, $3, $4)
+       on conflict (id) do update
+       set display_name = excluded.display_name,
+           role = excluded.role,
+           bio = excluded.bio,
+           avatar_url = excluded.avatar_url`,
+      [displayName, role, bio, avatarUrl]
+    );
+
+    await writeAuditLog({
+      actorEmail: session.email,
+      action: "update",
+      entity: "admin_profile",
+      entityId: "1",
+      details: {
+        updatedFields: ["display_name", "role", "bio", "avatar_url"],
+        uploadedAvatar: Boolean(uploadedAvatarUrl),
+      },
+    });
+
+    revalidateMany(["/admin", "/admin/conteudos", "/admin/configuracoes"]);
+    redirectWithToast("/admin/conteudos", "Perfil atualizado com sucesso.");
+  } catch (error) {
+    if (isRedirectError(error)) {
+      throw error;
+    }
+    redirectWithToast("/admin/conteudos", "Erro ao atualizar perfil.", "error");
+  }
 }
 
 export async function replyMessageAction(formData: FormData) {
@@ -317,57 +340,71 @@ export async function updateServicesSectionAction(formData: FormData) {
 }
 
 export async function updateServicesAction(formData: FormData) {
-  const session = await requireAdmin();
-  if (!isDatabaseConfigured()) {
-    redirectWithToast("/admin/servicos", "Base de dados não configurada.", "error");
-  }
-
-  await dbQuery("alter table services add column if not exists image_url text");
-
-  const count = Number(formData.get("services_count") ?? 0);
-  const services = Array.from({ length: count }, (_, index) => ({
-    id: Number(formData.get(`services_id_${index}`)),
-    icon: String(formData.get(`services_icon_${index}`) ?? "globe"),
-    title: String(formData.get(`services_title_${index}`) ?? ""),
-    imageUrl: String(formData.get(`services_image_url_${index}`) ?? ""),
-    imageFile: formData.get(`services_image_file_${index}`),
-    description: String(formData.get(`services_description_${index}`) ?? ""),
-    sortOrder: Number(formData.get(`services_order_${index}`) ?? index),
-  }));
-
-  let uploadedImages = 0;
-  for (const service of services) {
-    const uploadedImageUrl = await uploadServiceImage(service.imageFile as File, service.id);
-    if (uploadedImageUrl) {
-      uploadedImages += 1;
+  try {
+    const session = await requireAdmin();
+    if (!isDatabaseConfigured()) {
+      redirectWithToast("/admin/servicos", "Base de dados não configurada.", "error");
     }
-    const imageUrl = uploadedImageUrl ?? service.imageUrl;
 
-    await dbQuery(
-      `insert into services (id, icon, title, image_url, description, sort_order)
-       values ($1, $2, $3, $4, $5, $6)
-       on conflict (id) do update
-       set icon = excluded.icon,
-           title = excluded.title,
-           image_url = excluded.image_url,
-           description = excluded.description,
-           sort_order = excluded.sort_order`,
-      [service.id, service.icon, service.title, imageUrl, service.description, service.sortOrder]
-    );
+    await dbQuery("alter table services add column if not exists image_url text");
+
+    const count = Number(formData.get("services_count") ?? 0);
+    const services = Array.from({ length: count }, (_, index) => ({
+      id: Number(formData.get(`services_id_${index}`)),
+      icon: String(formData.get(`services_icon_${index}`) ?? "globe"),
+      title: String(formData.get(`services_title_${index}`) ?? ""),
+      imageUrl: String(formData.get(`services_image_url_${index}`) ?? ""),
+      imageFile: formData.get(`services_image_file_${index}`),
+      description: String(formData.get(`services_description_${index}`) ?? ""),
+      sortOrder: Number(formData.get(`services_order_${index}`) ?? index),
+    }));
+
+    let uploadedImages = 0;
+    for (const service of services) {
+      const uploadedImageUrl = await uploadServiceImage(service.imageFile as File, service.id);
+      if (isUploadFile(service.imageFile) && !uploadedImageUrl) {
+        redirectWithToast(
+          "/admin/servicos",
+          "Upload da fotografia falhou. Reduza o tamanho ou verifique o Storage.",
+          "error"
+        );
+      }
+      if (uploadedImageUrl) {
+        uploadedImages += 1;
+      }
+      const imageUrl = uploadedImageUrl ?? service.imageUrl;
+
+      await dbQuery(
+        `insert into services (id, icon, title, image_url, description, sort_order)
+         values ($1, $2, $3, $4, $5, $6)
+         on conflict (id) do update
+         set icon = excluded.icon,
+             title = excluded.title,
+             image_url = excluded.image_url,
+             description = excluded.description,
+             sort_order = excluded.sort_order`,
+        [service.id, service.icon, service.title, imageUrl, service.description, service.sortOrder]
+      );
+    }
+
+    await writeAuditLog({
+      actorEmail: session.email,
+      action: "update",
+      entity: "services",
+      details: {
+        total: services.length,
+        uploads: uploadedImages,
+      },
+    });
+
+    revalidateMany(["/", "/admin", "/admin/servicos"]);
+    redirectWithToast("/admin/servicos", "Serviços guardados com sucesso.");
+  } catch (error) {
+    if (isRedirectError(error)) {
+      throw error;
+    }
+    redirectWithToast("/admin/servicos", "Erro ao guardar serviços.", "error");
   }
-
-  await writeAuditLog({
-    actorEmail: session.email,
-    action: "update",
-    entity: "services",
-    details: {
-      total: services.length,
-      uploads: uploadedImages,
-    },
-  });
-
-  revalidateMany(["/", "/admin", "/admin/servicos"]);
-  redirectWithToast("/admin/servicos", "Serviços guardados com sucesso.");
 }
 
 export async function addServiceAction() {
@@ -459,89 +496,109 @@ export async function updateProjectsSectionAction(formData: FormData) {
 }
 
 export async function updateProjectsAction(formData: FormData) {
-  const session = await requireAdmin();
-  if (!isDatabaseConfigured()) {
-    redirectWithToast("/admin/projectos", "Base de dados não configurada.", "error");
-  }
-
-  await dbQuery("alter table projects add column if not exists image_url text");
-  await ensureProjectImagesTable();
-
-  const count = Number(formData.get("projects_count") ?? 0);
-  const projects = Array.from({ length: count }, (_, index) => ({
-    id: Number(formData.get(`projects_id_${index}`)),
-    title: String(formData.get(`projects_title_${index}`) ?? ""),
-    tag: String(formData.get(`projects_tag_${index}`) ?? ""),
-    imageUrl: String(formData.get(`projects_image_url_${index}`) ?? ""),
-    imageFile: formData.get(`projects_image_file_${index}`),
-    imageFiles: formData.getAll(`projects_images_files_${index}`),
-    description: String(formData.get(`projects_description_${index}`) ?? ""),
-    sortOrder: Number(formData.get(`projects_order_${index}`) ?? index),
-  }));
-
-  let uploadedImages = 0;
-  for (const project of projects) {
-    const uploadedImageUrl = await uploadProjectImage(project.imageFile as File, project.id);
-    if (uploadedImageUrl) {
-      uploadedImages += 1;
+  try {
+    const session = await requireAdmin();
+    if (!isDatabaseConfigured()) {
+      redirectWithToast("/admin/projectos", "Base de dados não configurada.", "error");
     }
-    const extraUploads = (project.imageFiles as unknown[])
-      .filter((file): file is File => file instanceof File && file.size > 0);
 
-    const uploadedGalleryUrls: string[] = [];
-    for (const file of extraUploads) {
-      const url = await uploadProjectImage(file, project.id);
-      if (url) {
+    await dbQuery("alter table projects add column if not exists image_url text");
+    await ensureProjectImagesTable();
+
+    const count = Number(formData.get("projects_count") ?? 0);
+    const projects = Array.from({ length: count }, (_, index) => ({
+      id: Number(formData.get(`projects_id_${index}`)),
+      title: String(formData.get(`projects_title_${index}`) ?? ""),
+      tag: String(formData.get(`projects_tag_${index}`) ?? ""),
+      imageUrl: String(formData.get(`projects_image_url_${index}`) ?? ""),
+      imageFile: formData.get(`projects_image_file_${index}`),
+      imageFiles: formData.getAll(`projects_images_files_${index}`),
+      description: String(formData.get(`projects_description_${index}`) ?? ""),
+      sortOrder: Number(formData.get(`projects_order_${index}`) ?? index),
+    }));
+
+    let uploadedImages = 0;
+    for (const project of projects) {
+      const uploadedImageUrl = await uploadProjectImage(project.imageFile as File, project.id);
+      if (isUploadFile(project.imageFile) && !uploadedImageUrl) {
+        redirectWithToast(
+          "/admin/projectos",
+          "Upload da fotografia principal falhou. Reduza o tamanho ou verifique o Storage.",
+          "error"
+        );
+      }
+      if (uploadedImageUrl) {
+        uploadedImages += 1;
+      }
+      const extraUploads = (project.imageFiles as unknown[]).filter(
+        (file): file is File => file instanceof File && file.size > 0
+      );
+
+      const uploadedGalleryUrls: string[] = [];
+      for (const file of extraUploads) {
+        const url = await uploadProjectImage(file, project.id);
+        if (!url) {
+          redirectWithToast(
+            "/admin/projectos",
+            "Upload de uma fotografia da galeria falhou. Reduza o tamanho ou verifique o Storage.",
+            "error"
+          );
+        }
         uploadedGalleryUrls.push(url);
       }
-    }
 
-    if (uploadedGalleryUrls.length > 0) {
-      uploadedImages += uploadedGalleryUrls.length;
-      const orderResult = await dbQuery<{ next_order: number }>(
-        `select coalesce(max(sort_order), -1) + 1 as next_order
-         from project_images
-         where project_id = $1`,
-        [project.id]
-      );
-      let nextOrder = Number(orderResult.rows[0]?.next_order ?? 0);
-      for (const url of uploadedGalleryUrls) {
-        await dbQuery(
-          `insert into project_images (project_id, image_url, sort_order)
-           values ($1, $2, $3)`,
-          [project.id, url, nextOrder]
+      if (uploadedGalleryUrls.length > 0) {
+        uploadedImages += uploadedGalleryUrls.length;
+        const orderResult = await dbQuery<{ next_order: number }>(
+          `select coalesce(max(sort_order), -1) + 1 as next_order
+           from project_images
+           where project_id = $1`,
+          [project.id]
         );
-        nextOrder += 1;
+        let nextOrder = Number(orderResult.rows[0]?.next_order ?? 0);
+        for (const url of uploadedGalleryUrls) {
+          await dbQuery(
+            `insert into project_images (project_id, image_url, sort_order)
+             values ($1, $2, $3)`,
+            [project.id, url, nextOrder]
+          );
+          nextOrder += 1;
+        }
       }
+
+      const imageUrl = uploadedImageUrl ?? project.imageUrl ?? uploadedGalleryUrls[0] ?? "";
+
+      await dbQuery(
+        `insert into projects (id, title, tag, image_url, description, sort_order)
+         values ($1, $2, $3, $4, $5, $6)
+         on conflict (id) do update
+         set title = excluded.title,
+             tag = excluded.tag,
+             image_url = excluded.image_url,
+             description = excluded.description,
+             sort_order = excluded.sort_order`,
+        [project.id, project.title, project.tag, imageUrl, project.description, project.sortOrder]
+      );
     }
 
-    const imageUrl = uploadedImageUrl ?? project.imageUrl ?? uploadedGalleryUrls[0] ?? "";
+    await writeAuditLog({
+      actorEmail: session.email,
+      action: "update",
+      entity: "projects",
+      details: {
+        total: projects.length,
+        uploads: uploadedImages,
+      },
+    });
 
-    await dbQuery(
-      `insert into projects (id, title, tag, image_url, description, sort_order)
-       values ($1, $2, $3, $4, $5, $6)
-       on conflict (id) do update
-       set title = excluded.title,
-           tag = excluded.tag,
-           image_url = excluded.image_url,
-           description = excluded.description,
-           sort_order = excluded.sort_order`,
-      [project.id, project.title, project.tag, imageUrl, project.description, project.sortOrder]
-    );
+    revalidateMany(["/", "/admin", "/admin/projectos"]);
+    redirectWithToast("/admin/projectos", "Projectos guardados com sucesso.");
+  } catch (error) {
+    if (isRedirectError(error)) {
+      throw error;
+    }
+    redirectWithToast("/admin/projectos", "Erro ao guardar projectos.", "error");
   }
-
-  await writeAuditLog({
-    actorEmail: session.email,
-    action: "update",
-    entity: "projects",
-    details: {
-      total: projects.length,
-      uploads: uploadedImages,
-    },
-  });
-
-  revalidateMany(["/", "/admin", "/admin/projectos"]);
-  redirectWithToast("/admin/projectos", "Projectos guardados com sucesso.");
 }
 
 export async function addProjectAction() {
@@ -925,47 +982,57 @@ export async function toggleAdminUserStatusAction(formData: FormData) {
 }
 
 export async function updateBrandingSettingsAction(formData: FormData) {
-  const session = await requireAdmin();
-  if (!isDatabaseConfigured()) {
-    redirectWithToast("/admin/configuracoes", "Base de dados não configurada.", "error");
-  }
+  try {
+    const session = await requireAdmin();
+    if (!isDatabaseConfigured()) {
+      redirectWithToast("/admin/configuracoes", "Base de dados não configurada.", "error");
+    }
 
-  const brandName = String(formData.get("brand_name") ?? "").trim() || "Mulone Tech";
-  const brandTagline =
-    String(formData.get("brand_tagline") ?? "").trim() || "Soluções digitais inteligentes";
-  const logoUrlInput = String(formData.get("brand_logo_url") ?? "").trim();
-  const logoFile = formData.get("brand_logo_file") as File | null;
+    const brandName = String(formData.get("brand_name") ?? "").trim() || "Mulone Tech";
+    const brandTagline =
+      String(formData.get("brand_tagline") ?? "").trim() || "Soluções digitais inteligentes";
+    const logoUrlInput = String(formData.get("brand_logo_url") ?? "").trim();
+    const logoFile = formData.get("brand_logo_file");
 
-  const uploadedLogoUrl = logoFile ? await uploadBrandingLogo(logoFile) : null;
-  const brandLogoUrl = uploadedLogoUrl ?? logoUrlInput;
+    const uploadedLogoUrl = isUploadFile(logoFile) ? await uploadBrandingLogo(logoFile) : null;
+    if (isUploadFile(logoFile) && !uploadedLogoUrl) {
+      redirectWithToast("/admin/configuracoes", "Upload do logotipo falhou. Verifique o Storage.", "error");
+    }
+    const brandLogoUrl = uploadedLogoUrl ?? logoUrlInput;
 
-  await dbQuery(
-    `insert into app_settings (key, value, updated_at)
-     values ('branding', $1::jsonb, now())
-     on conflict (key) do update
-     set value = excluded.value, updated_at = now()`,
-    [
-      JSON.stringify({
+    await dbQuery(
+      `insert into app_settings (key, value, updated_at)
+       values ('branding', $1::jsonb, now())
+       on conflict (key) do update
+       set value = excluded.value, updated_at = now()`,
+      [
+        JSON.stringify({
+          brandName,
+          brandTagline,
+          brandLogoUrl,
+        }),
+      ]
+    );
+
+    await writeAuditLog({
+      actorEmail: session.email,
+      action: "update",
+      entity: "branding",
+      entityId: "app_settings:branding",
+      details: {
         brandName,
-        brandTagline,
-        brandLogoUrl,
-      }),
-    ]
-  );
+        uploadedLogo: Boolean(uploadedLogoUrl),
+      },
+    });
 
-  await writeAuditLog({
-    actorEmail: session.email,
-    action: "update",
-    entity: "branding",
-    entityId: "app_settings:branding",
-    details: {
-      brandName,
-      uploadedLogo: Boolean(uploadedLogoUrl),
-    },
-  });
-
-  revalidateMany(["/", "/admin/configuracoes"]);
-  redirectWithToast("/admin/configuracoes", "Branding atualizado com sucesso.");
+    revalidateMany(["/", "/admin/configuracoes"]);
+    redirectWithToast("/admin/configuracoes", "Branding atualizado com sucesso.");
+  } catch (error) {
+    if (isRedirectError(error)) {
+      throw error;
+    }
+    redirectWithToast("/admin/configuracoes", "Erro ao atualizar branding.", "error");
+  }
 }
 
 

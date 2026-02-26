@@ -1,6 +1,5 @@
 import path from "path";
 import { mkdir, unlink, writeFile } from "fs/promises";
-import { createSupabaseServiceClient } from "@/lib/supabase/service";
 
 function cleanFileName(fileName: string) {
   return fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
@@ -14,6 +13,19 @@ function buildObjectPath(folder: string, originalName: string, fallbackName: str
 
 function getBucketName() {
   return (process.env.SUPABASE_UPLOADS_BUCKET ?? "uploads").trim();
+}
+
+function isVercelRuntime() {
+  return process.env.VERCEL === "1" || Boolean(process.env.VERCEL_URL);
+}
+
+async function getSupabaseServiceClient() {
+  try {
+    const supabaseModule = await import("@/lib/supabase/service");
+    return supabaseModule.createSupabaseServiceClient();
+  } catch {
+    return null;
+  }
 }
 
 function getSupabaseAssetPathFromUrl(url: string) {
@@ -42,7 +54,7 @@ export async function uploadImage(file: File, folder: string, fallbackName: stri
   const objectPath = buildObjectPath(folder, file.name, fallbackName);
   const buffer = Buffer.from(await file.arrayBuffer());
 
-  const supabase = createSupabaseServiceClient();
+  const supabase = await getSupabaseServiceClient();
   const bucket = getBucketName();
   if (supabase && bucket) {
     const { error } = await supabase.storage.from(bucket).upload(objectPath, buffer, {
@@ -51,17 +63,26 @@ export async function uploadImage(file: File, folder: string, fallbackName: stri
     });
 
     if (error) {
-      throw new Error(`SUPABASE_UPLOAD_FAILED:${error.message}`);
+      return null;
     }
 
     const { data } = supabase.storage.from(bucket).getPublicUrl(objectPath);
     return data.publicUrl;
   }
 
+  // On Vercel serverless runtime, writing to local filesystem is not persistent/reliable.
+  if (isVercelRuntime()) {
+    return null;
+  }
+
   const localFolder = path.join(process.cwd(), "public", "uploads", folder);
   const localPath = path.join(localFolder, path.basename(objectPath));
-  await mkdir(localFolder, { recursive: true });
-  await writeFile(localPath, buffer);
+  try {
+    await mkdir(localFolder, { recursive: true });
+    await writeFile(localPath, buffer);
+  } catch {
+    return null;
+  }
 
   return path.posix.join("/uploads", folder.replaceAll("\\", "/"), path.basename(objectPath));
 }
@@ -71,7 +92,7 @@ export async function deleteUploadedAsset(assetUrl: string) {
     return;
   }
 
-  const supabase = createSupabaseServiceClient();
+  const supabase = await getSupabaseServiceClient();
   const parsed = getSupabaseAssetPathFromUrl(assetUrl);
   if (supabase && parsed) {
     await supabase.storage.from(parsed.bucket).remove([parsed.objectPath]);
@@ -79,6 +100,9 @@ export async function deleteUploadedAsset(assetUrl: string) {
   }
 
   if (assetUrl.startsWith("/uploads/")) {
+    if (isVercelRuntime()) {
+      return;
+    }
     const filePath = path.join(
       process.cwd(),
       "public",
