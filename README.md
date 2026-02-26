@@ -1,36 +1,60 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Mulone Tech
 
-## Getting Started
+Sistema Next.js com painel administrativo, PostgreSQL e upload de imagens.
 
-First, run the development server:
+## Requisitos
+
+- Node.js 20+
+- PostgreSQL (Neon/Supabase/Railway ou outro)
+
+## Desenvolvimento local
+
+1. Copiar variaveis:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cp .env.example .env.local
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. Preencher `.env.local` com os valores reais.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+3. Instalar dependencias e rodar:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm ci
+npm run dev
+```
 
-## Learn More
+4. Inicializar schema/tabelas:
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npm run db:setup
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Deploy na Vercel
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+1. Importar repositório na Vercel.
+2. `Application Preset`: `Next.js`.
+3. `Root Directory`: pasta do projeto com `package.json` (normalmente `./`).
+4. Configurar Environment Variables:
 
-## Deploy on Vercel
+- `DATABASE_URL`
+- `DATABASE_SSL=true`
+- `ADMIN_SESSION_SECRET`
+- `EMAIL_USER` (opcional)
+- `EMAIL_PASS` (opcional)
+- `NEXT_PUBLIC_SUPABASE_URL` (opcional)
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY` (opcional)
+- `SUPABASE_SERVICE_ROLE_KEY` (opcional)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+5. Deploy.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Pos deploy
+
+Rode uma vez o setup do banco apontando para a base de producao:
+
+```bash
+npm run db:setup
+```
+
+Depois acesse `/admin/login`.
+
