@@ -4,6 +4,7 @@ import { dbQuery, isDatabaseConfigured } from "@/lib/db/postgres";
 import {
   addServiceAction,
   deleteServiceAction,
+  updateServicesAction,
   updateServicesSectionAction,
 } from "../actions";
 import { defaultServices, defaultServicesSection } from "@/lib/content/defaults";
@@ -141,12 +142,7 @@ export default async function AdminServicesPage() {
             <div className="mt-5 grid gap-4 text-sm">
               {mergedServices.map((service, index) => (
                 <div key={service.id} className="grid gap-3 rounded-2xl border border-white/10 p-4">
-                  <form
-                    action="/api/admin/services/update"
-                    method="post"
-                    encType="multipart/form-data"
-                    className="grid gap-3"
-                  >
+                  <form action={updateServicesAction} className="grid gap-3">
                     <input type="hidden" name="services_count" value={1} />
                     <input type="hidden" name="services_id_0" value={service.id} />
                     <input type="hidden" name="services_order_0" value={service.sort_order} />
@@ -216,7 +212,6 @@ export default async function AdminServicesPage() {
     </main>
   );
 }
-
 
 
 
