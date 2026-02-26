@@ -46,24 +46,32 @@ export default async function AdminServicesPage() {
     }
   }
 
-  const mergedServices =
-    services.length > 0
-      ? services.map((service) => ({
-          id: service.id,
-          icon: service.icon ?? "globe",
-          title: service.title ?? "",
-          image_url: service.image_url ?? "",
-          description: service.description ?? "",
-          sort_order: service.sort_order ?? 0,
-        }))
-      : defaultServices.map((service, index) => ({
-          id: index + 1,
-          icon: service.icon,
-          title: service.title,
-          image_url: (service as { imageUrl?: string }).imageUrl ?? "",
-          description: service.description,
-          sort_order: index,
-        }));
+  const defaultServiceRows = defaultServices.map((service, index) => ({
+    id: index + 1,
+    icon: service.icon,
+    title: service.title,
+    image_url: (service as { imageUrl?: string }).imageUrl ?? "",
+    description: service.description,
+    sort_order: index,
+  }));
+
+  const dbServiceRows = services.map((service) => ({
+    id: service.id,
+    icon: service.icon ?? "globe",
+    title: service.title ?? "",
+    image_url: service.image_url ?? "",
+    description: service.description ?? "",
+    sort_order: service.sort_order ?? 0,
+  }));
+
+  const byId = new Map(dbServiceRows.map((service) => [service.id, service]));
+  const missingFromDefaults = dbServiceRows.filter(
+    (service) => !defaultServiceRows.some((item) => item.id === service.id)
+  );
+
+  const mergedServices = [...defaultServiceRows, ...missingFromDefaults]
+    .map((service) => byId.get(service.id) ?? service)
+    .sort((a, b) => a.sort_order - b.sort_order || a.id - b.id);
 
   const mergedSection = servicesSection
     ? {

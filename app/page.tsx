@@ -204,22 +204,32 @@ export default async function Home() {
       }
     : defaultServicesSection;
 
-  const services =
-    servicesData.length > 0
-      ? servicesData.map((service) => ({
-          id: service.id,
-          icon: toServiceIcon(service.icon),
-          title: service.title ?? "",
-          imageUrl: service.image_url ?? "",
-          description: service.description ?? "",
-        }))
-      : defaultServices.map((service, index) => ({
-          id: index + 1,
-          icon: toServiceIcon(service.icon),
-          title: service.title,
-          imageUrl: (service as { imageUrl?: string }).imageUrl ?? "",
-          description: service.description,
-        }));
+  const defaultServiceItems = defaultServices.map((service, index) => ({
+    id: index + 1,
+    icon: toServiceIcon(service.icon),
+    title: service.title,
+    imageUrl: (service as { imageUrl?: string }).imageUrl ?? "",
+    description: service.description,
+    sortOrder: index,
+  }));
+
+  const dbServiceItems = servicesData.map((service, index) => ({
+    id: service.id,
+    icon: toServiceIcon(service.icon),
+    title: service.title ?? "",
+    imageUrl: service.image_url ?? "",
+    description: service.description ?? "",
+    sortOrder: index,
+  }));
+
+  const dbServicesById = new Map(dbServiceItems.map((service) => [service.id, service]));
+  const customServices = dbServiceItems.filter(
+    (service) => !defaultServiceItems.some((item) => item.id === service.id)
+  );
+
+  const services = [...defaultServiceItems, ...customServices]
+    .map((service) => dbServicesById.get(service.id) ?? service)
+    .map(({ sortOrder: _sortOrder, ...service }) => service);
 
   const projectsSection = projectsSectionData
     ? {
