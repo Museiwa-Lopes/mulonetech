@@ -45,8 +45,21 @@ npm run db:setup
 - `NEXT_PUBLIC_SUPABASE_URL` (opcional)
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY` (opcional)
 - `SUPABASE_SERVICE_ROLE_KEY` (opcional)
+- `SUPABASE_UPLOADS_BUCKET` (opcional, default: `uploads`)
 
 5. Deploy.
+
+### Upload estavel em producao (recomendado)
+
+Para persistir uploads na Vercel, configure Supabase Storage:
+
+1. Crie um bucket publico (ex: `uploads`).
+2. Defina na Vercel:
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `SUPABASE_SERVICE_ROLE_KEY`
+   - `SUPABASE_UPLOADS_BUCKET=uploads`
+
+Sem isso, o sistema usa fallback local (`/public/uploads`), que nao e persistente em serverless.
 
 ## Pos deploy
 

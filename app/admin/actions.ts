@@ -3,10 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import crypto from "crypto";
-import path from "path";
-import { mkdir, writeFile, unlink } from "fs/promises";
 import { getAdminSession } from "@/lib/auth/admin";
 import { dbQuery, isDatabaseConfigured } from "@/lib/db/postgres";
+import { deleteUploadedAsset, uploadImage } from "@/lib/storage/uploads";
 
 type AdminSession = {
   email: string;
@@ -93,47 +92,26 @@ async function writeAuditLog(payload: AuditLogPayload) {
   }
 }
 
-function cleanFileName(fileName: string) {
-  return fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
-}
-
 function hashPassword(password: string) {
   const salt = crypto.randomBytes(16).toString("hex");
   const digest = crypto.scryptSync(password, salt, 64).toString("hex");
   return `scrypt:${salt}:${digest}`;
 }
 
-async function uploadImageLocally(file: File, folder: string, fallbackName: string) {
-  if (!(file instanceof File) || file.size === 0) {
-    return null;
-  }
-
-  const extension = file.name.includes(".") ? file.name.split(".").pop() : "jpg";
-  const safeFileName = `${Date.now()}-${cleanFileName(file.name || `${fallbackName}.${extension}`)}`;
-  const localFolder = path.join(process.cwd(), "public", "uploads", folder);
-  const localPath = path.join(localFolder, safeFileName);
-  await mkdir(localFolder, { recursive: true });
-
-  const buffer = Buffer.from(await file.arrayBuffer());
-  await writeFile(localPath, buffer);
-
-  return path.posix.join("/uploads", folder.replaceAll("\\", "/"), safeFileName);
-}
-
 async function uploadServiceImage(file: File, serviceId: number) {
-  return uploadImageLocally(file, `services/${serviceId}`, "image");
+  return uploadImage(file, `services/${serviceId}`, "image");
 }
 
 async function uploadBrandingLogo(file: File) {
-  return uploadImageLocally(file, "branding", "logo");
+  return uploadImage(file, "branding", "logo");
 }
 
 async function uploadProjectImage(file: File, projectId: number) {
-  return uploadImageLocally(file, `projects/${projectId}`, "image");
+  return uploadImage(file, `projects/${projectId}`, "image");
 }
 
 async function uploadProfileAvatar(file: File) {
-  return uploadImageLocally(file, "profile", "avatar");
+  return uploadImage(file, "profile", "avatar");
 }
 
 async function getNextId(tableName: "services" | "projects" | "testimonials") {
@@ -434,7 +412,11 @@ export async function deleteServiceAction(serviceId: number) {
     redirectWithToast("/admin/servicos", "É necessário manter pelo menos um serviço.", "error");
   }
 
-  await dbQuery("delete from services where id = $1", [serviceId]);
+  const deleted = await dbQuery<{ image_url: string | null }>(
+    "delete from services where id = $1 returning image_url",
+    [serviceId]
+  );
+  await deleteUploadedAsset(deleted.rows[0]?.image_url ?? "");
   await writeAuditLog({
     actorEmail: session.email,
     action: "delete",
@@ -606,8 +588,20 @@ export async function deleteProjectAction(projectId: number) {
   }
 
   await ensureProjectImagesTable();
-  await dbQuery("delete from project_images where project_id = $1", [projectId]);
-  await dbQuery("delete from projects where id = $1", [projectId]);
+
+  const galleryDeleted = await dbQuery<{ image_url: string }>(
+    "delete from project_images where project_id = $1 returning image_url",
+    [projectId]
+  );
+  const mainDeleted = await dbQuery<{ image_url: string | null }>(
+    "delete from projects where id = $1 returning image_url",
+    [projectId]
+  );
+
+  for (const row of galleryDeleted.rows) {
+    await deleteUploadedAsset(row.image_url ?? "");
+  }
+  await deleteUploadedAsset(mainDeleted.rows[0]?.image_url ?? "");
   await writeAuditLog({
     actorEmail: session.email,
     action: "delete",
@@ -674,18 +668,7 @@ export async function deleteProjectImageAction(
       await dbQuery("update projects set image_url = $1 where id = $2", [replacement, safeProjectId]);
     }
 
-    if (deletedUrl?.startsWith("/uploads/")) {
-      const filePath = path.join(
-        process.cwd(),
-        "public",
-        deletedUrl.replace(/^\//, "").replaceAll("/", path.sep)
-      );
-      try {
-        await unlink(filePath);
-      } catch {
-        // File can be already removed or inaccessible; ignore.
-      }
-    }
+    await deleteUploadedAsset(deletedUrl);
 
     await writeAuditLog({
       actorEmail: session.email,

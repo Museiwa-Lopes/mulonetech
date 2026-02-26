@@ -1,9 +1,8 @@
-import path from "path";
-import { mkdir, writeFile } from "fs/promises";
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { getAdminSession } from "@/lib/auth/admin";
 import { dbQuery, isDatabaseConfigured } from "@/lib/db/postgres";
+import { uploadImage } from "@/lib/storage/uploads";
 
 function buildToastUrl(pathname: string, message: string, type: "success" | "error" | "info" = "success") {
   const params = new URLSearchParams({
@@ -13,24 +12,8 @@ function buildToastUrl(pathname: string, message: string, type: "success" | "err
   return `${pathname}?${params.toString()}`;
 }
 
-function cleanFileName(fileName: string) {
-  return fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
-}
-
 async function uploadServiceImage(file: File, serviceId: number) {
-  if (!(file instanceof File) || file.size === 0) {
-    return null;
-  }
-
-  const extension = file.name.includes(".") ? file.name.split(".").pop() : "jpg";
-  const safeFileName = `${Date.now()}-${cleanFileName(file.name || `image.${extension}`)}`;
-  const localFolder = path.join(process.cwd(), "public", "uploads", "services", String(serviceId));
-  const localPath = path.join(localFolder, safeFileName);
-  await mkdir(localFolder, { recursive: true });
-
-  const buffer = Buffer.from(await file.arrayBuffer());
-  await writeFile(localPath, buffer);
-  return path.posix.join("/uploads", "services", String(serviceId), safeFileName);
+  return uploadImage(file, `services/${serviceId}`, "image");
 }
 
 export async function POST(request: Request) {
@@ -94,4 +77,3 @@ export async function POST(request: Request) {
     return NextResponse.redirect(failUrl, 303);
   }
 }
-
