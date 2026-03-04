@@ -7,11 +7,11 @@ import AdminToast from "./AdminToast";
 const navItems = [
   { href: "/admin", label: "Dashboard" },
   { href: "/admin/utilizadores", label: "Utilizadores" },
-  { href: "/admin/servicos", label: "Servicos" },
+  { href: "/admin/servicos", label: "Serviços" },
   { href: "/admin/projectos", label: "Projectos" },
   { href: "/admin/mensagens", label: "Mensagens" },
-  { href: "/admin/conteudos", label: "Conteudos" },
-  { href: "/admin/configuracoes", label: "Configuracoes" },
+  { href: "/admin/conteudos", label: "Conteúdos" },
+  { href: "/admin/configuracoes", label: "Configurações" },
   { href: "/admin/logout", label: "Logout" },
 ];
 
@@ -26,7 +26,7 @@ export default async function AdminLayout({
   const showNav = Boolean(session);
 
   let brandName = "Mulone Tech";
-  let brandTagline = "Solucoes digitais inteligentes";
+  let brandTagline = "Soluções digitais inteligentes";
   let brandLogoUrl = "/logo-navbar.png";
 
   if (isDatabaseConfigured()) {

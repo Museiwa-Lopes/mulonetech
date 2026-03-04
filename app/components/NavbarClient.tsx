@@ -13,8 +13,8 @@ const sections = ["inicio", "servicos", "projectos", "contacto"] as const;
 type SectionId = (typeof sections)[number];
 
 const sectionLabels: Record<SectionId, string> = {
-  inicio: "Inicio",
-  servicos: "Servicos",
+  inicio: "Início",
+  servicos: "Serviços",
   projectos: "Projectos",
   contacto: "Contacto",
 };
@@ -112,11 +112,11 @@ export default function NavbarClient({
         <div className="flex flex-wrap items-center gap-3 md:flex-nowrap">
           {email ? (
             <span className="badge hidden text-xs text-white/80 sm:inline-flex">
-              Sessao iniciada: {email}
+              Sessão iniciada: {email}
             </span>
           ) : null}
           <a className="btn-ghost text-sm" href="/admin/login">
-            Painel de administracao
+            Painel de administração
           </a>
           <a className="btn-primary text-sm" href="#contacto">
             Falar com a equipa
