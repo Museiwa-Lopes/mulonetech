@@ -1,2 +1,0 @@
-Password for user postgres: admin
-Password user admin strength: admin
