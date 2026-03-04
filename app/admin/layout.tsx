@@ -1,4 +1,4 @@
-import { Suspense } from "react";
+﻿import { Suspense } from "react";
 import Link from "next/link";
 import { getAdminSession } from "@/lib/auth/admin";
 import { dbQuery, isDatabaseConfigured } from "@/lib/db/postgres";
@@ -7,11 +7,11 @@ import AdminToast from "./AdminToast";
 const navItems = [
   { href: "/admin", label: "Dashboard" },
   { href: "/admin/utilizadores", label: "Utilizadores" },
-  { href: "/admin/servicos", label: "Serviços" },
+  { href: "/admin/servicos", label: "Servicos" },
   { href: "/admin/projectos", label: "Projectos" },
   { href: "/admin/mensagens", label: "Mensagens" },
-  { href: "/admin/conteudos", label: "Conteúdos" },
-  { href: "/admin/configuracoes", label: "Configurações" },
+  { href: "/admin/conteudos", label: "Conteudos" },
+  { href: "/admin/configuracoes", label: "Configuracoes" },
   { href: "/admin/logout", label: "Logout" },
 ];
 
@@ -27,7 +27,7 @@ export default async function AdminLayout({
 
   let brandName = "Mulone Tech";
   let brandTagline = "Solucoes digitais inteligentes";
-  let brandLogoUrl = "";
+  let brandLogoUrl = "/logo-navbar.png";
 
   if (isDatabaseConfigured()) {
     try {
@@ -43,7 +43,7 @@ export default async function AdminLayout({
         };
         brandName = data.brandName || brandName;
         brandTagline = data.brandTagline || brandTagline;
-        brandLogoUrl = data.brandLogoUrl || "";
+        brandLogoUrl = data.brandLogoUrl || brandLogoUrl;
       }
     } catch {
       // keep defaults while settings table is not ready
@@ -57,17 +57,14 @@ export default async function AdminLayout({
       </Suspense>
       {showNav ? (
         <div className="border-b border-white/10 bg-[#0b1020]/80 backdrop-blur">
-          <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
+          <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-2 sm:px-6 sm:py-3">
             <Link href="/" className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-white/10 bg-[linear-gradient(120deg,#ffc164,#ff8bb5)]">
-                {brandLogoUrl ? (
-                  <img src={brandLogoUrl} alt={`Logotipo ${brandName}`} className="h-full w-full object-cover" />
-                ) : null}
-              </div>
-              <div>
-                <p className="font-display text-lg font-semibold tracking-tight">{brandName}</p>
-                <p className="text-xs text-white/60">{brandTagline}</p>
-              </div>
+              <img
+                src={brandLogoUrl}
+                alt={`Logotipo ${brandName}`}
+                className="h-10 w-auto max-w-[300px] object-contain"
+              />
+              <span className="sr-only">{brandTagline}</span>
             </Link>
 
             <div className="flex flex-wrap items-center gap-2">

@@ -1,15 +1,4 @@
 ﻿import { dbQuery, isDatabaseConfigured } from "@/lib/db/postgres";
-import {
-  defaultContact,
-  defaultHero,
-  defaultHeroStats,
-  defaultProjects,
-  defaultProjectsSection,
-  defaultServices,
-  defaultServicesSection,
-  defaultTestimonials,
-  defaultTestimonialsSection,
-} from "@/lib/content/defaults";
 import Navbar from "./components/Navbar";
 import Hero from "./components/Hero";
 import Services from "./components/Services";
@@ -110,6 +99,27 @@ function toServiceIcon(icon: string | null | undefined): ServiceIcon {
     ? (icon as ServiceIcon)
     : "globe";
 }
+const defaultHero = {
+  badge: "",
+  title: "",
+  subtitle: "",
+  radarEyebrow: "",
+  radarTitle: "",
+  radarDescription: "",
+  ctaPrimaryLabel: "",
+  ctaPrimaryHref: "#contacto",
+  ctaSecondaryLabel: "",
+  ctaSecondaryHref: "#projectos",
+};
+
+const defaultHeroStats: Array<{ value: string; label: string }> = [];
+const defaultServices: Array<{ icon: ServiceIcon; title: string; description: string; imageUrl?: string }> = [];
+const defaultServicesSection = { eyebrow: "", title: "", description: "" };
+const defaultProjectsSection = { eyebrow: "", title: "", description: "" };
+const defaultTestimonialsSection = { eyebrow: "", title: "", description: "" };
+const defaultProjects: Array<{ title: string; tag: string; description: string; imageUrl?: string; galleryImages?: string[] }> = [];
+const defaultTestimonials: Array<{ name: string; role: string; quote: string }> = [];
+const defaultContact = { eyebrow: "", title: "", description: "", badges: [] as string[] };
 
 export default async function Home() {
   let heroData: HeroContentRow | null = null;
@@ -517,6 +527,9 @@ export default async function Home() {
     </>
   );
 }
+
+
+
 
 
 

@@ -7,7 +7,6 @@ import {
   updateServicesAction,
   updateServicesSectionAction,
 } from "../actions";
-import { defaultServices, defaultServicesSection } from "@/lib/content/defaults";
 
 type Service = {
   id: number;
@@ -23,6 +22,9 @@ type ServicesSection = {
   title: string | null;
   description: string | null;
 };
+
+const defaultServices: Array<{ icon: string; title: string; description: string; imageUrl?: string }> = [];
+const defaultServicesSection = { eyebrow: "", title: "", description: "" };
 
 export default async function AdminServicesPage() {
   const session = await getAdminSession();
@@ -212,6 +214,9 @@ export default async function AdminServicesPage() {
     </main>
   );
 }
+
+
+
 
 
 

@@ -211,101 +211,117 @@ export async function replyMessageAction(formData: FormData) {
 }
 
 export async function updateHeroAction(formData: FormData) {
-  const session = await requireAdmin();
-  if (!isDatabaseConfigured()) {
-    redirectWithToast("/admin/conteudos", "Base de dados não configurada.", "error");
+  try {
+    const session = await requireAdmin();
+    if (!isDatabaseConfigured()) {
+      redirectWithToast("/admin/conteudos", "Base de dados não configurada.", "error");
+    }
+
+    await dbQuery("alter table hero_content add column if not exists radar_eyebrow text");
+    await dbQuery("alter table hero_content add column if not exists radar_title text");
+    await dbQuery("alter table hero_content add column if not exists radar_description text");
+
+    const badge = String(formData.get("hero_badge") ?? "");
+    const title = String(formData.get("hero_title") ?? "");
+    const subtitle = String(formData.get("hero_subtitle") ?? "");
+    const radarEyebrow = String(formData.get("hero_radar_eyebrow") ?? "");
+    const radarTitle = String(formData.get("hero_radar_title") ?? "");
+    const radarDescription = String(formData.get("hero_radar_description") ?? "");
+    const ctaPrimaryLabel = String(formData.get("hero_cta_primary_label") ?? "");
+    const ctaPrimaryHref = String(formData.get("hero_cta_primary_href") ?? "");
+    const ctaSecondaryLabel = String(formData.get("hero_cta_secondary_label") ?? "");
+    const ctaSecondaryHref = String(formData.get("hero_cta_secondary_href") ?? "");
+
+    await dbQuery(
+      `insert into hero_content (
+         id, badge, title, subtitle, radar_eyebrow, radar_title, radar_description,
+         cta_primary_label, cta_primary_href, cta_secondary_label, cta_secondary_href
+       ) values (1, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+       on conflict (id) do update
+       set badge = excluded.badge,
+           title = excluded.title,
+           subtitle = excluded.subtitle,
+           radar_eyebrow = excluded.radar_eyebrow,
+           radar_title = excluded.radar_title,
+           radar_description = excluded.radar_description,
+           cta_primary_label = excluded.cta_primary_label,
+           cta_primary_href = excluded.cta_primary_href,
+           cta_secondary_label = excluded.cta_secondary_label,
+           cta_secondary_href = excluded.cta_secondary_href`,
+      [
+        badge,
+        title,
+        subtitle,
+        radarEyebrow,
+        radarTitle,
+        radarDescription,
+        ctaPrimaryLabel,
+        ctaPrimaryHref,
+        ctaSecondaryLabel,
+        ctaSecondaryHref,
+      ]
+    );
+
+    await writeAuditLog({
+      actorEmail: session.email,
+      action: "update",
+      entity: "hero_content",
+      entityId: "1",
+      details: { updatedFields: ["badge", "title", "subtitle", "radar", "cta"] },
+    });
+
+    revalidateMany(["/", "/admin", "/admin/conteudos"]);
+    redirectWithToast("/admin/conteudos", "Hero atualizado com sucesso.");
+  } catch (error) {
+    if (isRedirectError(error)) {
+      throw error;
+    }
+    console.error("Erro ao atualizar hero:", error);
+    redirectWithToast("/admin/conteudos", "Erro ao atualizar hero.", "error");
   }
-
-  await dbQuery("alter table hero_content add column if not exists radar_eyebrow text");
-  await dbQuery("alter table hero_content add column if not exists radar_title text");
-  await dbQuery("alter table hero_content add column if not exists radar_description text");
-
-  const badge = String(formData.get("hero_badge") ?? "");
-  const title = String(formData.get("hero_title") ?? "");
-  const subtitle = String(formData.get("hero_subtitle") ?? "");
-  const radarEyebrow = String(formData.get("hero_radar_eyebrow") ?? "");
-  const radarTitle = String(formData.get("hero_radar_title") ?? "");
-  const radarDescription = String(formData.get("hero_radar_description") ?? "");
-  const ctaPrimaryLabel = String(formData.get("hero_cta_primary_label") ?? "");
-  const ctaPrimaryHref = String(formData.get("hero_cta_primary_href") ?? "");
-  const ctaSecondaryLabel = String(formData.get("hero_cta_secondary_label") ?? "");
-  const ctaSecondaryHref = String(formData.get("hero_cta_secondary_href") ?? "");
-
-  await dbQuery(
-    `insert into hero_content (
-       id, badge, title, subtitle, radar_eyebrow, radar_title, radar_description,
-       cta_primary_label, cta_primary_href, cta_secondary_label, cta_secondary_href
-     ) values (1, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-     on conflict (id) do update
-     set badge = excluded.badge,
-         title = excluded.title,
-         subtitle = excluded.subtitle,
-         radar_eyebrow = excluded.radar_eyebrow,
-         radar_title = excluded.radar_title,
-         radar_description = excluded.radar_description,
-         cta_primary_label = excluded.cta_primary_label,
-         cta_primary_href = excluded.cta_primary_href,
-         cta_secondary_label = excluded.cta_secondary_label,
-         cta_secondary_href = excluded.cta_secondary_href`,
-    [
-      badge,
-      title,
-      subtitle,
-      radarEyebrow,
-      radarTitle,
-      radarDescription,
-      ctaPrimaryLabel,
-      ctaPrimaryHref,
-      ctaSecondaryLabel,
-      ctaSecondaryHref,
-    ]
-  );
-
-  await writeAuditLog({
-    actorEmail: session.email,
-    action: "update",
-    entity: "hero_content",
-    entityId: "1",
-    details: { updatedFields: ["badge", "title", "subtitle", "radar", "cta"] },
-  });
-
-  revalidateMany(["/", "/admin", "/admin/conteudos"]);
-  redirectWithToast("/admin/conteudos", "Hero atualizado com sucesso.");
 }
 
 export async function updateHeroStatsAction(formData: FormData) {
-  const session = await requireAdmin();
-  if (!isDatabaseConfigured()) {
-    redirectWithToast("/admin/conteudos", "Base de dados não configurada.", "error");
+  try {
+    const session = await requireAdmin();
+    if (!isDatabaseConfigured()) {
+      redirectWithToast("/admin/conteudos", "Base de dados não configurada.", "error");
+    }
+
+    const count = Number(formData.get("hero_stats_count") ?? 0);
+    const stats = Array.from({ length: count }, (_, index) => ({
+      id: Number(formData.get(`hero_stats_id_${index}`)),
+      value: String(formData.get(`hero_stats_value_${index}`) ?? ""),
+      label: String(formData.get(`hero_stats_label_${index}`) ?? ""),
+      sortOrder: Number(formData.get(`hero_stats_order_${index}`) ?? index),
+    }));
+
+    for (const stat of stats) {
+      await dbQuery(
+        `insert into hero_stats (id, value, label, sort_order)
+         values ($1, $2, $3, $4)
+         on conflict (id) do update
+         set value = excluded.value, label = excluded.label, sort_order = excluded.sort_order`,
+        [stat.id, stat.value, stat.label, stat.sortOrder]
+      );
+    }
+
+    await writeAuditLog({
+      actorEmail: session.email,
+      action: "update",
+      entity: "hero_stats",
+      details: { total: stats.length },
+    });
+
+    revalidateMany(["/", "/admin", "/admin/conteudos"]);
+    redirectWithToast("/admin/conteudos", "Estatísticas atualizadas com sucesso.");
+  } catch (error) {
+    if (isRedirectError(error)) {
+      throw error;
+    }
+    console.error("Erro ao atualizar estatísticas do hero:", error);
+    redirectWithToast("/admin/conteudos", "Erro ao atualizar estatísticas.", "error");
   }
-
-  const count = Number(formData.get("hero_stats_count") ?? 0);
-  const stats = Array.from({ length: count }, (_, index) => ({
-    id: Number(formData.get(`hero_stats_id_${index}`)),
-    value: String(formData.get(`hero_stats_value_${index}`) ?? ""),
-    label: String(formData.get(`hero_stats_label_${index}`) ?? ""),
-    sortOrder: Number(formData.get(`hero_stats_order_${index}`) ?? index),
-  }));
-
-  for (const stat of stats) {
-    await dbQuery(
-      `insert into hero_stats (id, value, label, sort_order)
-       values ($1, $2, $3, $4)
-       on conflict (id) do update
-       set value = excluded.value, label = excluded.label, sort_order = excluded.sort_order`,
-      [stat.id, stat.value, stat.label, stat.sortOrder]
-    );
-  }
-
-  await writeAuditLog({
-    actorEmail: session.email,
-    action: "update",
-    entity: "hero_stats",
-    details: { total: stats.length },
-  });
-
-  revalidateMany(["/", "/admin", "/admin/conteudos"]);
-  redirectWithToast("/admin/conteudos", "Estatísticas atualizadas com sucesso.");
 }
 
 export async function updateServicesSectionAction(formData: FormData) {
@@ -752,33 +768,41 @@ export async function deleteProjectImageAction(
 }
 
 export async function updateTestimonialsSectionAction(formData: FormData) {
-  const session = await requireAdmin();
-  if (!isDatabaseConfigured()) {
-    redirectWithToast("/admin/conteudos", "Base de dados não configurada.", "error");
+  try {
+    const session = await requireAdmin();
+    if (!isDatabaseConfigured()) {
+      redirectWithToast("/admin/conteudos", "Base de dados não configurada.", "error");
+    }
+
+    const eyebrow = String(formData.get("testimonials_eyebrow") ?? "");
+    const title = String(formData.get("testimonials_title") ?? "");
+    const description = String(formData.get("testimonials_description") ?? "");
+
+    await dbQuery(
+      `insert into testimonials_section (id, eyebrow, title, description)
+       values (1, $1, $2, $3)
+       on conflict (id) do update
+       set eyebrow = excluded.eyebrow,
+           title = excluded.title,
+           description = excluded.description`,
+      [eyebrow, title, description]
+    );
+
+    await writeAuditLog({
+      actorEmail: session.email,
+      action: "update",
+      entity: "testimonials_section",
+      entityId: "1",
+    });
+    revalidateMany(["/", "/admin", "/admin/conteudos"]);
+    redirectWithToast("/admin/conteudos", "Secção de depoimentos atualizada.");
+  } catch (error) {
+    if (isRedirectError(error)) {
+      throw error;
+    }
+    console.error("Erro ao atualizar secção de depoimentos:", error);
+    redirectWithToast("/admin/conteudos", "Erro ao atualizar secção de depoimentos.", "error");
   }
-
-  const eyebrow = String(formData.get("testimonials_eyebrow") ?? "");
-  const title = String(formData.get("testimonials_title") ?? "");
-  const description = String(formData.get("testimonials_description") ?? "");
-
-  await dbQuery(
-    `insert into testimonials_section (id, eyebrow, title, description)
-     values (1, $1, $2, $3)
-     on conflict (id) do update
-     set eyebrow = excluded.eyebrow,
-         title = excluded.title,
-         description = excluded.description`,
-    [eyebrow, title, description]
-  );
-
-  await writeAuditLog({
-    actorEmail: session.email,
-    action: "update",
-    entity: "testimonials_section",
-    entityId: "1",
-  });
-  revalidateMany(["/", "/admin", "/admin/conteudos"]);
-  redirectWithToast("/admin/conteudos", "Secção de depoimentos atualizada.");
 }
 
 export async function updateTestimonialsAction(formData: FormData) {
@@ -871,40 +895,48 @@ export async function deleteTestimonialAction(testimonialId: number) {
 }
 
 export async function updateContactAction(formData: FormData) {
-  const session = await requireAdmin();
-  if (!isDatabaseConfigured()) {
-    redirectWithToast("/admin/conteudos", "Base de dados não configurada.", "error");
+  try {
+    const session = await requireAdmin();
+    if (!isDatabaseConfigured()) {
+      redirectWithToast("/admin/conteudos", "Base de dados não configurada.", "error");
+    }
+
+    const eyebrow = String(formData.get("contact_eyebrow") ?? "");
+    const title = String(formData.get("contact_title") ?? "");
+    const description = String(formData.get("contact_description") ?? "");
+    const badges = [
+      String(formData.get("contact_badge_0") ?? ""),
+      String(formData.get("contact_badge_1") ?? ""),
+      String(formData.get("contact_badge_2") ?? ""),
+    ].filter(Boolean);
+
+    await dbQuery(
+      `insert into contact_section (id, eyebrow, title, description, badges)
+       values (1, $1, $2, $3, $4)
+       on conflict (id) do update
+       set eyebrow = excluded.eyebrow,
+           title = excluded.title,
+           description = excluded.description,
+           badges = excluded.badges`,
+      [eyebrow, title, description, badges]
+    );
+
+    await writeAuditLog({
+      actorEmail: session.email,
+      action: "update",
+      entity: "contact_section",
+      entityId: "1",
+    });
+
+    revalidateMany(["/", "/admin", "/admin/conteudos"]);
+    redirectWithToast("/admin/conteudos", "Contacto atualizado com sucesso.");
+  } catch (error) {
+    if (isRedirectError(error)) {
+      throw error;
+    }
+    console.error("Erro ao atualizar contacto:", error);
+    redirectWithToast("/admin/conteudos", "Erro ao atualizar contacto.", "error");
   }
-
-  const eyebrow = String(formData.get("contact_eyebrow") ?? "");
-  const title = String(formData.get("contact_title") ?? "");
-  const description = String(formData.get("contact_description") ?? "");
-  const badges = [
-    String(formData.get("contact_badge_0") ?? ""),
-    String(formData.get("contact_badge_1") ?? ""),
-    String(formData.get("contact_badge_2") ?? ""),
-  ].filter(Boolean);
-
-  await dbQuery(
-    `insert into contact_section (id, eyebrow, title, description, badges)
-     values (1, $1, $2, $3, $4)
-     on conflict (id) do update
-     set eyebrow = excluded.eyebrow,
-         title = excluded.title,
-         description = excluded.description,
-         badges = excluded.badges`,
-    [eyebrow, title, description, badges]
-  );
-
-  await writeAuditLog({
-    actorEmail: session.email,
-    action: "update",
-    entity: "contact_section",
-    entityId: "1",
-  });
-
-  revalidateMany(["/", "/admin", "/admin/conteudos"]);
-  redirectWithToast("/admin/conteudos", "Contacto atualizado com sucesso.");
 }
 
 export async function createAdminUserAction(formData: FormData) {

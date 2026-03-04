@@ -11,13 +11,6 @@ import {
   updateTestimonialsAction,
   updateTestimonialsSectionAction,
 } from "../actions";
-import {
-  defaultContact,
-  defaultHero,
-  defaultHeroStats,
-  defaultTestimonials,
-  defaultTestimonialsSection,
-} from "@/lib/content/defaults";
 
 type Profile = {
   display_name: string | null;
@@ -67,6 +60,23 @@ type ContactSection = {
   badges: string[] | null;
 };
 
+const defaultHero = {
+  badge: "",
+  title: "",
+  subtitle: "",
+  radarEyebrow: "",
+  radarTitle: "",
+  radarDescription: "",
+  ctaPrimaryLabel: "",
+  ctaPrimaryHref: "#contacto",
+  ctaSecondaryLabel: "",
+  ctaSecondaryHref: "#projectos",
+};
+
+const defaultHeroStats: Array<{ value: string; label: string }> = [];
+const defaultTestimonialsSection = { eyebrow: "", title: "", description: "" };
+const defaultTestimonials: Array<{ name: string; role: string; quote: string }> = [];
+const defaultContact = { eyebrow: "", title: "", description: "", badges: [] as string[] };
 export default async function AdminContentPage() {
   const session = await getAdminSession();
   if (!session) {
@@ -525,6 +535,8 @@ export default async function AdminContentPage() {
     </main>
   );
 }
+
+
 
 
 

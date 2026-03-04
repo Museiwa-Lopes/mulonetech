@@ -30,15 +30,30 @@ export default function Hero({
   ctaSecondaryHref,
   stats,
 }: HeroProps) {
+  const toRadarPercentage = (rawValue: string, index: number) => {
+    const safe = String(rawValue ?? "").trim().toLowerCase();
+    const parsed = Number.parseInt(safe.replace(/[^\d]/g, ""), 10);
+
+    // For SLA-like values (e.g. "24h"), lower hours means better performance.
+    if (safe.includes("h") && Number.isFinite(parsed) && parsed > 0) {
+      const mapped = 100 - Math.min(80, Math.round((parsed / 72) * 80));
+      return Math.max(75, mapped);
+    }
+
+    if (Number.isFinite(parsed)) {
+      return Math.max(0, Math.min(100, parsed));
+    }
+
+    return [87, 92, 79][index] ?? 50;
+  };
+
   const radarStats = stats.slice(0, 3).map((stat, index) => {
-    const parsed = Number.parseInt(String(stat.value).replace(/[^\d]/g, ""), 10);
-    const percentage = Number.isFinite(parsed)
-      ? Math.max(0, Math.min(100, parsed))
-      : [87, 92, 79][index] ?? 50;
+    const percentage = toRadarPercentage(stat.value, index);
     const color = ["#ffc164", "#8cf5d2", "#ff8bb5"][index] ?? "#ffc164";
 
     return {
       label: stat.label || `Indicador ${index + 1}`,
+      displayValue: stat.value || `${percentage}%`,
       percentage,
       color,
     };
@@ -97,7 +112,7 @@ export default function Hero({
                   <div key={item.label} className="grid gap-2">
                     <div className="flex items-center justify-between">
                       <span>{item.label}</span>
-                      <span className="text-white">{item.percentage}%</span>
+                      <span className="text-white">{item.displayValue}</span>
                     </div>
                     <div className="h-2 w-full overflow-hidden rounded-full bg-white/10">
                       <div

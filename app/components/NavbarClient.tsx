@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 
@@ -13,13 +13,12 @@ const sections = ["inicio", "servicos", "projectos", "contacto"] as const;
 type SectionId = (typeof sections)[number];
 
 const sectionLabels: Record<SectionId, string> = {
-  inicio: "Início",
-  servicos: "Serviços",
+  inicio: "Inicio",
+  servicos: "Servicos",
   projectos: "Projectos",
   contacto: "Contacto",
 };
 
-// Delay activation so the highlight changes only when the user is truly inside each section.
 const activationDelay: Record<SectionId, number> = {
   inicio: 0,
   servicos: 180,
@@ -35,6 +34,8 @@ export default function NavbarClient({
 }: NavbarClientProps) {
   const [activeSection, setActiveSection] = useState<SectionId>("inicio");
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  const resolvedLogoUrl = (brandLogoUrl || "/logo-navbar.png").trim();
 
   const handleNavClick = (section: SectionId) => {
     setActiveSection(section);
@@ -72,7 +73,6 @@ export default function NavbarClient({
     window.addEventListener("scroll", updateActiveSection, { passive: true });
     window.addEventListener("resize", updateActiveSection);
     const handleHashChange = () => {
-      // Let browser finish hash scroll first.
       window.setTimeout(updateActiveSection, 0);
     };
 
@@ -87,21 +87,13 @@ export default function NavbarClient({
 
   return (
     <nav className="sticky top-0 z-50 border-b border-white/5 bg-[#0b0f1a]/80 backdrop-blur-lg">
-      <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-4 py-3 sm:px-6 sm:py-4">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-white/10 bg-[linear-gradient(120deg,#ffc164,#ff8bb5)]">
-            {brandLogoUrl ? (
-              <img
-                src={brandLogoUrl}
-                alt={`Logótipo ${brandName}`}
-                className="h-full w-full object-cover"
-              />
-            ) : null}
-          </div>
-          <div>
-            <p className="font-display text-lg font-semibold tracking-tight">{brandName}</p>
-            <p className="text-xs text-white/60">{brandTagline}</p>
-          </div>
+      <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-4 py-2 sm:px-6 sm:py-3">
+        <div className="flex items-center">
+          <img
+            src={resolvedLogoUrl}
+            alt={`Logotipo ${brandName}`}
+            className="h-10 w-auto max-w-[280px] object-contain sm:h-14 sm:max-w-[420px]"
+          />
         </div>
 
         <div className="hidden items-center gap-6 text-sm text-white/80 md:flex">
@@ -120,11 +112,11 @@ export default function NavbarClient({
         <div className="flex flex-wrap items-center gap-3 md:flex-nowrap">
           {email ? (
             <span className="badge hidden text-xs text-white/80 sm:inline-flex">
-              Sessão iniciada: {email}
+              Sessao iniciada: {email}
             </span>
           ) : null}
           <a className="btn-ghost text-sm" href="/admin/login">
-            Painel de administração
+            Painel de administracao
           </a>
           <a className="btn-primary text-sm" href="#contacto">
             Falar com a equipa

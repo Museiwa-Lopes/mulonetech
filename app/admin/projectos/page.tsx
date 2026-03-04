@@ -8,7 +8,6 @@ import {
   updateProjectsAction,
   updateProjectsSectionAction,
 } from "../actions";
-import { defaultProjects, defaultProjectsSection } from "@/lib/content/defaults";
 
 type Project = {
   id: number;
@@ -31,6 +30,9 @@ type ProjectsSection = {
   title: string | null;
   description: string | null;
 };
+
+const defaultProjects: Array<{ title: string; tag: string; description: string; imageUrl?: string }> = [];
+const defaultProjectsSection = { eyebrow: "", title: "", description: "" };
 
 export default async function AdminProjectsPage() {
   const session = await getAdminSession();
@@ -274,5 +276,7 @@ export default async function AdminProjectsPage() {
     </main>
   );
 }
+
+
 
 
